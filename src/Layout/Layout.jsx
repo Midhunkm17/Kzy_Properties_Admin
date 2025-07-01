@@ -8,7 +8,7 @@ const Layout = ({children}) => {
         <Box minHeight={'100vh'} display={'flex'} >
             <DashboardSidebar/>
         </Box>
-        <Box sx={{  px: 3, py: 2 }}>
+        <Box sx={{  px: 2, py: 2 }}>
             {children}
         </Box>
     </Box>
