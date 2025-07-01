@@ -240,8 +240,8 @@ const PropertyDetailsDrawer = ({ open, onClose, property }) => {
               src={getThumbnailPreview()}
               variant="rounded"
               sx={{
-                width: 200,
-                height: 150,
+                width: 300,
+                height: 200,
                 mx: "auto",
                 mb: 2,
                 cursor: isLoading ? "not-allowed" : "pointer",
@@ -291,7 +291,7 @@ const PropertyDetailsDrawer = ({ open, onClose, property }) => {
                     variant="rounded"
                     sx={{
                       width: "100%",
-                      height: 100,
+                      height: 150,
                       cursor: isLoading ? "not-allowed" : "pointer",
                       backgroundColor: getImagePreview(index)
                         ? "transparent"

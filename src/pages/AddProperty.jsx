@@ -130,7 +130,7 @@ const AddProperty = () => {
 
       <Grid container spacing={2} mb={3}>
         {[0, 1, 2, 3, 4, 5].map((index) => (
-          <Grid item xs={6} key={index}>
+          <Grid item xs={6} sm={6} key={index}>
             <input
               accept="image/*"
               style={{ display: "none" }}
@@ -139,11 +139,11 @@ const AddProperty = () => {
               onChange={handleImageChange(index)}
             />
             <label htmlFor={`image-upload-${index}`}>
-              <Box sx={{ position: "relative", width: 250 }}>
+              <Box sx={{ position: "relative"}}>
                 <Avatar
                   src={getImagePreview(index)}
                   variant="rounded"
-                  sx={{ width: "100%", height: 250, border: "1px dashed #ccc" }}
+                  sx={{ width: 180, height: 180, border: "1px dashed #ccc" }}
                 >
                   {!getImagePreview(index) && (
                     <ImageIcon sx={{ fontSize: 30, color: "#999" }} />

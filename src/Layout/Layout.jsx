@@ -5,7 +5,7 @@ import DashboardSidebar from '../components/DashboardSidebar'
 const Layout = ({children}) => {
   return (
     <Box display={'flex'}>
-        <Box minHeight={'100vh'} display={'flex'} width={250}>
+        <Box minHeight={'100vh'} display={'flex'} >
             <DashboardSidebar/>
         </Box>
         <Box sx={{  px: 3, py: 2 }}>

@@ -69,7 +69,7 @@ const ManageProperties = () => {
           <Card
             key={item._id}
             sx={{
-              width: 230,
+              width: 190,
               display: "flex",
               flexDirection: "column",
               borderRadius: 3,
