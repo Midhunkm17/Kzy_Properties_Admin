@@ -57,7 +57,7 @@ const ManageProperties = () => {
       </Typography>
       <Divider />
 
-      <Grid container spacing={3} mt={4}>
+      <Grid container spacing={2} mt={4}>
         {properties.map((item) => (
           <Grid item xs={12} sm={3} md={4} lg={3} key={item._id}>
             <Card
