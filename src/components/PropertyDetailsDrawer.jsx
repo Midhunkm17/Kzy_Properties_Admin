@@ -5,7 +5,6 @@ import {
   Typography,
   Button,
   Chip,
-  Grid,
   Divider,
   Stack,
   Avatar,
@@ -32,6 +31,40 @@ import {
 } from "../services/apis/propertyApis";
 import toast from "react-hot-toast";
 
+// ── Reusable field row ──────────────────────────────────────────────────────
+const Field = ({
+  label,
+  value,
+  onChange,
+  disabled,
+  icon,
+  multiline,
+  rows,
+  type,
+}) => (
+  <TextField
+    fullWidth
+    label={label}
+    value={value}
+    onChange={onChange}
+    disabled={disabled}
+    multiline={multiline}
+    rows={rows}
+    type={type}
+    InputProps={
+      icon
+        ? {
+            startAdornment: (
+              <Box sx={{ mr: 1, display: "flex", alignItems: "center" }}>
+                {icon}
+              </Box>
+            ),
+          }
+        : undefined
+    }
+  />
+);
+
 const PropertyDetailsDrawer = ({ open, onClose, property }) => {
   const [formData, setFormData] = useState({});
   const [imageFiles, setImageFiles] = useState({});
@@ -45,25 +78,20 @@ const PropertyDetailsDrawer = ({ open, onClose, property }) => {
       queryClient.invalidateQueries(["properties"]);
       setApiError(null);
     },
-    onError: (error) => setApiError(error.message),
+    onError: (e) => setApiError(e.message),
   });
 
   const imagesMutation = useMutation({
     mutationFn: ({ id, imageFiles, thumbnailFile }) => {
-      const mergedImages = [];
-
+      const merged = [];
       for (let i = 0; i < 6; i++) {
         const key = `image${i + 1}`;
-        if (imageFiles[key]) {
-          mergedImages.push(imageFiles[key]); // new file
-        } else if (property.images?.[i]) {
-          mergedImages.push(property.images[i]); // existing URL
-        }
+        merged.push(imageFiles[key] ?? property.images?.[i] ?? null);
       }
       return updatePropertyImages(
         id,
-        mergedImages,
-        thumbnailFile ?? property.thumbnail
+        merged.filter(Boolean),
+        thumbnailFile ?? property.thumbnail,
       );
     },
     onSuccess: () => {
@@ -72,12 +100,9 @@ const PropertyDetailsDrawer = ({ open, onClose, property }) => {
       setImageFiles({});
       setThumbnailFile(null);
     },
-    onError: (error) => {
-      setApiError(error.message);
-    },
+    onError: (e) => setApiError(e.message),
   });
 
-  // Clear form data when drawer closes - moved before early return
   React.useEffect(() => {
     if (!open) {
       setFormData({});
@@ -89,68 +114,48 @@ const PropertyDetailsDrawer = ({ open, onClose, property }) => {
 
   if (!property) return null;
 
-  const handleChange = (field) => (event) => {
-    setFormData((prev) => ({ ...prev, [field]: event.target.value }));
+  const handleChange = (field) => (e) =>
+    setFormData((p) => ({ ...p, [field]: e.target.value }));
+  const handleImageChange = (index) => (e) => {
+    const file = e.target.files[0];
+    if (file) setImageFiles((p) => ({ ...p, [`image${index + 1}`]: file }));
   };
-
-  const handleImageChange = (index) => (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      console.log(`Setting image for index ${index + 1}:`, file.name); // Debug log
-      setImageFiles((prev) => ({ ...prev, [`image${index + 1}`]: file }));
-    }
+  const handleThumbnailChange = (e) => {
+    const f = e.target.files[0];
+    if (f) setThumbnailFile(f);
   };
-
-  const handleThumbnailChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setThumbnailFile(file);
-    }
-  };
-
-  const toggleSoldStatus = () => {
-    setFormData((prev) => ({ ...prev, isActive: !getValue("isActive") }));
-  };
-
+  const toggleSoldStatus = () =>
+    setFormData((p) => ({ ...p, isActive: !getValue("isActive") }));
   const getValue = (field) => formData[field] ?? property[field];
 
   const getImagePreview = (index) => {
-    const imageKey = `image${index + 1}`;
-    if (imageFiles[imageKey]) {
-      return URL.createObjectURL(imageFiles[imageKey]);
-    }
-    return property.images?.[index] || "";
+    const key = `image${index + 1}`;
+    return imageFiles[key]
+      ? URL.createObjectURL(imageFiles[key])
+      : property.images?.[index] || "";
   };
-
-  const getThumbnailPreview = () => {
-    if (thumbnailFile) {
-      return URL.createObjectURL(thumbnailFile);
-    }
-    return property.thumbnail || "";
-  };
+  const getThumbnailPreview = () =>
+    thumbnailFile
+      ? URL.createObjectURL(thumbnailFile)
+      : property.thumbnail || "";
 
   const handleSaveAll = async () => {
     try {
-      console.log("Saving images:", imageFiles); // Debug log
-
-      if (Object.keys(formData).length > 0) {
+      if (Object.keys(formData).length > 0)
         await propertyMutation.mutateAsync({
-          id: property?._id,
+          id: property._id,
           data: formData,
         });
-      }
-      if (Object.keys(imageFiles).length > 0 || thumbnailFile) {
+      if (Object.keys(imageFiles).length > 0 || thumbnailFile)
         await imagesMutation.mutateAsync({
           id: property._id,
           imageFiles,
           thumbnailFile,
         });
-      }
       toast.success("Property updated successfully");
       onClose();
-    } catch (error) {
-      console.error("Error saving:", error);
-      toast.error(error.message);
+    } catch (err) {
+      toast.error(err.message);
     }
   };
 
@@ -164,30 +169,38 @@ const PropertyDetailsDrawer = ({ open, onClose, property }) => {
       onClose={onClose}
       PaperProps={{
         sx: {
-          width: { xs: "100%", sm: "500px" },
-          padding: 3,
-          backgroundImage:
-            "linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0.95))",
+          width: { xs: "100%", sm: 480, md: 560, lg: 640 },
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          overflow: "hidden",
         },
       }}
     >
-      <Box sx={{ height: "100%", overflowY: "auto" }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 3,
-          }}
-        >
-          <Typography variant="h5" fontWeight={600}>
-            Edit Property
-          </Typography>
-          <IconButton onClick={onClose} size="small" disabled={isLoading}>
-            <CloseIcon />
-          </IconButton>
-        </Box>
+      {/* ── Header ── */}
+      <Box
+        sx={{
+          px: { xs: 2, sm: 3 },
+          py: 2,
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexShrink: 0,
+        }}
+      >
+        <Typography variant="h6" fontWeight={700}>
+          Edit Property
+        </Typography>
+        <IconButton onClick={onClose} size="small" disabled={isLoading}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
 
+      {/* ── Scrollable body ── */}
+      <Box sx={{ flex: 1, overflowY: "auto", px: { xs: 2, sm: 3 }, py: 2 }}>
+        {/* Error / loading */}
         {apiError && (
           <Alert
             severity="error"
@@ -197,21 +210,14 @@ const PropertyDetailsDrawer = ({ open, onClose, property }) => {
             {apiError}
           </Alert>
         )}
-
         {isLoading && (
-          <Box
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
-            mb={2}
-          >
-            <CircularProgress size={20} />
-            <Typography variant="body2" sx={{ ml: 1 }}>
-              Updating...
-            </Typography>
+          <Box display="flex" alignItems="center" gap={1} mb={2}>
+            <CircularProgress size={18} />
+            <Typography variant="body2">Updating…</Typography>
           </Box>
         )}
 
+        {/* Sold toggle */}
         <Button
           fullWidth
           variant={isPropertySold ? "contained" : "outlined"}
@@ -219,244 +225,270 @@ const PropertyDetailsDrawer = ({ open, onClose, property }) => {
           startIcon={isPropertySold ? <SellIcon /> : <CheckCircleIcon />}
           onClick={toggleSoldStatus}
           disabled={isLoading}
-          sx={{ mb: 2 }}
+          sx={{ mb: 2, borderRadius: 2 }}
         >
           {isPropertySold ? "Mark as Available" : "Mark as Sold"}
         </Button>
 
-        <Divider sx={{ my: 2 }} />
+        <Divider sx={{ mb: 2 }} />
 
-        <Box textAlign="center" mb={3}>
-          <input
-            accept="image/*"
-            style={{ display: "none" }}
-            id="thumbnail-upload"
-            type="file"
-            onChange={handleThumbnailChange}
-            disabled={isLoading}
+        {/* ── Thumbnail ── */}
+        <input
+          accept="image/*"
+          style={{ display: "none" }}
+          id="drawer-thumbnail-upload"
+          type="file"
+          onChange={handleThumbnailChange}
+          disabled={isLoading}
+        />
+        <label
+          htmlFor="drawer-thumbnail-upload"
+          style={{
+            display: "block",
+            cursor: isLoading ? "not-allowed" : "pointer",
+          }}
+        >
+          <Box
+            component="img"
+            src={getThumbnailPreview()}
+            alt="Thumbnail"
+            sx={{
+              width: "100%",
+              height: { xs: 180, sm: 220 },
+              objectFit: "cover",
+              borderRadius: 2,
+              border: "2px dashed #ccc",
+              display: "block",
+              mb: 2,
+              "&:hover": { borderColor: "primary.main", opacity: 0.9 },
+            }}
           />
-          <label htmlFor="thumbnail-upload">
-            <Avatar
-              src={getThumbnailPreview()}
-              variant="rounded"
-              sx={{
-                width: 300,
-                height: 200,
-                mx: "auto",
-                mb: 2,
-                cursor: isLoading ? "not-allowed" : "pointer",
-                "&:hover": { opacity: 0.8 },
-              }}
-            />
-          </label>
+        </label>
 
-          <TextField
-            fullWidth
-            label="Property Title"
-            value={getValue("propertyTitle")}
-            onChange={handleChange("propertyTitle")}
-            disabled={isLoading}
+        {/* Title + chips */}
+        <TextField
+          fullWidth
+          label="Property Title"
+          value={getValue("propertyTitle")}
+          onChange={handleChange("propertyTitle")}
+          disabled={isLoading}
+          sx={{ mb: 2 }}
+        />
+        <Stack direction="row" spacing={1} flexWrap="wrap" mb={2}>
+          <Chip
+            label={property.propertyCategory}
+            color="primary"
+            size="small"
           />
-          <Stack direction="row" spacing={1} justifyContent="center" mt={2}>
-            <Chip label={property.propertyCategory} color="primary" />
-            <Chip
-              label={property.serviceProvideType}
-              color="secondary"
-              variant="outlined"
-            />
-            {isPropertySold && <Chip label="SOLD" color="error" />}
-          </Stack>
-        </Box>
+          <Chip
+            label={property.serviceProvideType}
+            color="secondary"
+            variant="outlined"
+            size="small"
+          />
+          {isPropertySold && <Chip label="SOLD" color="error" size="small" />}
+        </Stack>
 
-        <Divider sx={{ my: 2 }} />
+        <Divider sx={{ mb: 2 }} />
 
-        <Typography variant="h6" fontWeight={600} mb={2}>
+        {/* ── Property Images — CSS Grid ── */}
+        <Typography variant="subtitle1" fontWeight={600} mb={1.5}>
           Property Images
         </Typography>
-        <Grid container spacing={2} mb={3}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 1.5,
+            mb: 3,
+          }}
+        >
           {[0, 1, 2, 3, 4, 5].map((index) => (
-            <Grid item xs={6} key={index}>
+            <Box key={index}>
               <input
                 accept="image/*"
                 style={{ display: "none" }}
-                id={`image-upload-${index}`}
+                id={`drawer-image-${index}`}
                 type="file"
                 onChange={handleImageChange(index)}
                 disabled={isLoading}
               />
-              <label htmlFor={`image-upload-${index}`}>
-                <Box sx={{ position: "relative", width: 150 }}>
-                  <Avatar
-                    src={getImagePreview(index)}
-                    variant="rounded"
+              <label
+                htmlFor={`drawer-image-${index}`}
+                style={{
+                  display: "block",
+                  cursor: isLoading ? "not-allowed" : "pointer",
+                }}
+              >
+                <Box
+                  sx={{
+                    position: "relative",
+                    width: "100%",
+                    paddingTop: "100%",
+                  }}
+                >
+                  <Box
                     sx={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
                       width: "100%",
-                      height: 150,
-                      cursor: isLoading ? "not-allowed" : "pointer",
-                      backgroundColor: getImagePreview(index)
-                        ? "transparent"
-                        : "#f5f5f5",
+                      height: "100%",
+                      borderRadius: 2,
                       border: "2px dashed #ddd",
-                      "&:hover": { borderColor: "#1976d2" },
+                      overflow: "hidden",
+                      bgcolor: "#f5f5f5",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      "&:hover": { borderColor: "primary.main" },
+                      backgroundImage: getImagePreview(index)
+                        ? `url(${getImagePreview(index)})`
+                        : "none",
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
                     }}
                   >
                     {!getImagePreview(index) && (
-                      <ImageIcon sx={{ fontSize: 30, color: "#999" }} />
+                      <ImageIcon sx={{ fontSize: 28, color: "#bbb" }} />
                     )}
-                  </Avatar>
-                  {/* Debug: Show index number */}
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      position: "absolute",
-                      bottom: 2,
-                      right: 2,
-                      backgroundColor: "rgba(0,0,0,0.7)",
-                      color: "white",
-                      padding: "2px 4px",
-                      borderRadius: "4px",
-                      fontSize: "10px",
-                    }}
-                  >
-                    {index + 1}
-                  </Typography>
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        bottom: 4,
+                        right: 4,
+                        bgcolor: "rgba(0,0,0,0.55)",
+                        color: "#fff",
+                        fontSize: 10,
+                        px: 0.6,
+                        py: 0.2,
+                        borderRadius: 1,
+                      }}
+                    >
+                      {index + 1}
+                    </Box>
+                  </Box>
                 </Box>
               </label>
-            </Grid>
+            </Box>
           ))}
-        </Grid>
+        </Box>
 
-        <Divider sx={{ my: 2 }} />
+        <Divider sx={{ mb: 2 }} />
 
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Place"
-              value={getValue("place")}
-              onChange={handleChange("place")}
-              disabled={isLoading}
-              InputProps={{ startAdornment: <LocationOnIcon sx={{ mr: 1 }} /> }}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Location URL"
-              value={getValue("locationUrl")}
-              onChange={handleChange("locationUrl")}
-              disabled={isLoading}
-              InputProps={{ startAdornment: <LinkIcon sx={{ mr: 1 }} /> }}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Description"
-              multiline
-              rows={3}
-              value={getValue("propertyDescription")}
-              onChange={handleChange("propertyDescription")}
-              disabled={isLoading}
-              InputProps={{
-                startAdornment: (
-                  <HomeWorkIcon sx={{ mr: 1, alignSelf: "flex-start" }} />
-                ),
-              }}
-            />
-          </Grid>
-          <Grid item xs={6}>
-            <TextField
-              fullWidth
+        {/* ── Fields ── */}
+        <Stack spacing={2}>
+          <Field
+            label="Place"
+            value={getValue("place")}
+            onChange={handleChange("place")}
+            disabled={isLoading}
+            icon={<LocationOnIcon fontSize="small" />}
+          />
+          <Field
+            label="Location URL"
+            value={getValue("locationUrl")}
+            onChange={handleChange("locationUrl")}
+            disabled={isLoading}
+            icon={<LinkIcon fontSize="small" />}
+          />
+          <Field
+            label="Description"
+            value={getValue("propertyDescription")}
+            onChange={handleChange("propertyDescription")}
+            disabled={isLoading}
+            icon={<HomeWorkIcon fontSize="small" />}
+            multiline
+            rows={3}
+          />
+
+          {/* 2-column number fields */}
+          <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+            <Field
               label="Rooms"
-              type="number"
               value={getValue("numberOfRooms")}
               onChange={handleChange("numberOfRooms")}
               disabled={isLoading}
-              InputProps={{ startAdornment: <BedIcon sx={{ mr: 1 }} /> }}
-            />
-          </Grid>
-          <Grid item xs={6}>
-            <TextField
-              fullWidth
-              label="Bathrooms"
+              icon={<BedIcon fontSize="small" />}
               type="number"
+            />
+            <Field
+              label="Bathrooms"
               value={getValue("numberOfBathRooms")}
               onChange={handleChange("numberOfBathRooms")}
               disabled={isLoading}
-              InputProps={{ startAdornment: <BathtubIcon sx={{ mr: 1 }} /> }}
-            />
-          </Grid>
-          <Grid item xs={6}>
-            <TextField
-              fullWidth
-              label="Attached Bathrooms"
+              icon={<BathtubIcon fontSize="small" />}
               type="number"
+            />
+            <Field
+              label="Attached Bathrooms"
               value={getValue("attachedBathRooms")}
               onChange={handleChange("attachedBathRooms")}
               disabled={isLoading}
-              InputProps={{ startAdornment: <BathtubIcon sx={{ mr: 1 }} /> }}
-            />
-          </Grid>
-          <Grid item xs={6}>
-            <TextField
-              fullWidth
-              label="Cents"
+              icon={<BathtubIcon fontSize="small" />}
               type="number"
+            />
+            <Field
+              label="Cents"
               value={getValue("cent")}
               onChange={handleChange("cent")}
               disabled={isLoading}
-              InputProps={{ startAdornment: <SquareFootIcon sx={{ mr: 1 }} /> }}
-            />
-          </Grid>
-          <Grid item xs={6}>
-            <TextField
-              fullWidth
-              label="Square Feet"
+              icon={<SquareFootIcon fontSize="small" />}
               type="number"
+            />
+            <Field
+              label="Square Feet"
               value={getValue("squareFeet")}
               onChange={handleChange("squareFeet")}
               disabled={isLoading}
-              InputProps={{ startAdornment: <SquareFootIcon sx={{ mr: 1 }} /> }}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Price (INR)"
+              icon={<SquareFootIcon fontSize="small" />}
               type="number"
-              value={getValue("price")}
-              onChange={handleChange("price")}
-              disabled={isLoading}
-              InputProps={{
-                startAdornment: <PriceChangeIcon sx={{ mr: 1 }} />,
-              }}
             />
-          </Grid>
-        </Grid>
+          </Box>
 
-        <Box mt={4}>
-          <Button
-            fullWidth
-            variant="contained"
-            onClick={handleSaveAll}
+          <Field
+            label="Price (INR)"
+            value={getValue("price")}
+            onChange={handleChange("price")}
             disabled={isLoading}
-            startIcon={isLoading && <CircularProgress size={16} />}
-            sx={{ mb: 2 }}
-          >
-            Save All Changes
-          </Button>
-          <Button
-            sx={{ mb: 5 }}
-            fullWidth
-            color="error"
-            variant="outlined"
-            onClick={onClose}
-            disabled={isLoading}
-          >
-            Cancel
-          </Button>
-        </Box>
+            icon={<PriceChangeIcon fontSize="small" />}
+            type="number"
+          />
+        </Stack>
+      </Box>
+
+      {/* ── Footer actions (sticky) ── */}
+      <Box
+        sx={{
+          px: { xs: 2, sm: 3 },
+          py: 2,
+          borderTop: "1px solid",
+          borderColor: "divider",
+          display: "flex",
+          gap: 1.5,
+          flexShrink: 0,
+        }}
+      >
+        <Button
+          variant="outlined"
+          color="error"
+          fullWidth
+          onClick={onClose}
+          disabled={isLoading}
+          sx={{ borderRadius: 2 }}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          fullWidth
+          onClick={handleSaveAll}
+          disabled={isLoading}
+          startIcon={isLoading && <CircularProgress size={15} />}
+          sx={{ borderRadius: 2 }}
+        >
+          Save Changes
+        </Button>
       </Box>
     </Drawer>
   );

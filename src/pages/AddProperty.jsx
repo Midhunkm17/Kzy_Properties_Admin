@@ -3,14 +3,10 @@ import {
   Box,
   Typography,
   Button,
-  Chip,
-  Grid,
   Divider,
   Stack,
-  Avatar,
   TextField,
   CircularProgress,
-  Alert,
   FormControl,
   InputLabel,
   Select,
@@ -24,17 +20,57 @@ import BathtubIcon from "@mui/icons-material/Bathtub";
 import LinkIcon from "@mui/icons-material/Link";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import SquareFootIcon from "@mui/icons-material/SquareFoot";
-import PriceChangeIconchange from "@mui/icons-material/PriceChange";
+import PriceChangeIcon from "@mui/icons-material/PriceChange";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addProperty } from "../services/apis/propertyApis";
 import toast, { Toaster } from "react-hot-toast";
+
+// ── Reusable Field ──────────────────────────────────────────────────────────
+const Field = ({
+  label,
+  value,
+  onChange,
+  disabled,
+  icon,
+  multiline,
+  rows,
+  type,
+}) => (
+  <TextField
+    fullWidth
+    label={label}
+    value={value}
+    onChange={onChange}
+    disabled={disabled}
+    multiline={multiline}
+    rows={rows}
+    type={type}
+    InputProps={
+      icon
+        ? {
+            startAdornment: (
+              <Box
+                sx={{
+                  mr: 1,
+                  display: "flex",
+                  alignItems: multiline ? "flex-start" : "center",
+                  mt: multiline ? 1 : 0,
+                }}
+              >
+                {icon}
+              </Box>
+            ),
+          }
+        : undefined
+    }
+  />
+);
 
 const AddProperty = () => {
   const theme = useTheme();
   const [formData, setFormData] = useState({});
   const [imageFiles, setImageFiles] = useState({});
   const [thumbnailFile, setThumbnailFile] = useState(null);
-  const [apiError, setApiError] = useState(null);
   const queryClient = useQueryClient();
 
   const addMutation = useMutation({
@@ -48,262 +84,324 @@ const AddProperty = () => {
     },
   });
 
-  const handleChange = (field) => (event) => {
-    setFormData((prev) => ({ ...prev, [field]: event.target.value }));
+  const handleChange = (field) => (e) =>
+    setFormData((p) => ({ ...p, [field]: e.target.value }));
+  const handleImageChange = (index) => (e) => {
+    const file = e.target.files[0];
+    if (file) setImageFiles((p) => ({ ...p, [`image${index + 1}`]: file }));
   };
-
-  const handleImageChange = (index) => (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setImageFiles((prev) => ({ ...prev, [`image${index + 1}`]: file }));
-    }
-  };
-
-  const handleThumbnailChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setThumbnailFile(file);
-    }
+  const handleThumbnailChange = (e) => {
+    const f = e.target.files[0];
+    if (f) setThumbnailFile(f);
   };
 
   const getImagePreview = (index) => {
-    const imageKey = `image${index + 1}`;
-    return imageFiles[imageKey]
-      ? URL.createObjectURL(imageFiles[imageKey])
-      : "";
+    const file = imageFiles[`image${index + 1}`];
+    return file ? URL.createObjectURL(file) : "";
   };
-
-  const getThumbnailPreview = () => {
-    return thumbnailFile ? URL.createObjectURL(thumbnailFile) : "";
-  };
+  const getThumbnailPreview = () =>
+    thumbnailFile ? URL.createObjectURL(thumbnailFile) : "";
 
   const handleAdd = async () => {
     try {
       const payload = new FormData();
-
-      Object.entries(formData).forEach(([key, value]) => {
-        payload.append(key, value);
-      });
-
+      Object.entries(formData).forEach(([k, v]) => payload.append(k, v));
       for (let i = 0; i < 6; i++) {
         const file = imageFiles[`image${i + 1}`];
         if (file) payload.append("images", file);
       }
-
       if (thumbnailFile) payload.append("thumbnail", thumbnailFile);
-
       await addMutation.mutateAsync(payload);
     } catch (err) {
-      console.error("Add error:", err);
       toast.error(err.response?.data?.message || "Failed to add property");
     }
   };
 
+  const isPending = addMutation.isPending;
+
   return (
-    <Box sx={{ p: 3, mx: "auto" }}>
-      <Typography variant="h5" fontWeight={600} mb={3}>
+    <Box sx={{ width: "100%", boxSizing: "border-box" }}>
+      <Typography variant="h5" fontWeight={700} mb={1}>
         Add New Property
       </Typography>
+      <Divider sx={{ mb: 3 }} />
+
+      {/* ── Thumbnail ── */}
       <input
         accept="image/*"
         style={{ display: "none" }}
         id="thumbnail-upload"
         type="file"
         onChange={handleThumbnailChange}
-        disabled={addMutation.isPending}
+        disabled={isPending}
       />
-      <label htmlFor="thumbnail-upload">
-        <Avatar
-          src={getThumbnailPreview()}
-          variant="rounded"
-          sx={{ width: 250, height: 250, mx: "auto", mb: 2, cursor: "pointer" }}
-        />
+      <label
+        htmlFor="thumbnail-upload"
+        style={{
+          display: "block",
+          cursor: isPending ? "not-allowed" : "pointer",
+        }}
+      >
+        <Box
+          sx={{
+            width: "100%",
+            height: { xs: 200, sm: 260 },
+            borderRadius: 2,
+            border: "2px dashed #ccc",
+            overflow: "hidden",
+            mb: 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: "#f9f9f9",
+            backgroundImage: getThumbnailPreview()
+              ? `url(${getThumbnailPreview()})`
+              : "none",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            transition: "border-color 0.2s",
+            "&:hover": { borderColor: "primary.main" },
+          }}
+        >
+          {!getThumbnailPreview() && (
+            <Stack alignItems="center" spacing={1}>
+              <ImageIcon sx={{ fontSize: 40, color: "#bbb" }} />
+              <Typography fontSize={13} color="text.secondary">
+                Click to upload thumbnail
+              </Typography>
+            </Stack>
+          )}
+        </Box>
       </label>
 
-      <TextField
-        fullWidth
+      {/* ── Title ── */}
+      <Field
         label="Property Title"
         value={formData.propertyTitle || ""}
         onChange={handleChange("propertyTitle")}
-        sx={{ mb: 2 }}
+        disabled={isPending}
       />
 
-      <Grid container spacing={2} mb={3}>
+      <Divider sx={{ my: 2 }} />
+
+      {/* ── 6 Image Slots — CSS Grid ── */}
+      <Typography variant="subtitle1" fontWeight={600} mb={1.5}>
+        Property Images
+      </Typography>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "repeat(3, 1fr)",
+            sm: "repeat(6, 1fr)",
+          },
+          gap: 1.5,
+          mb: 3,
+        }}
+      >
         {[0, 1, 2, 3, 4, 5].map((index) => (
-          <Grid item xs={6} sm={6} key={index}>
+          <Box key={index}>
             <input
               accept="image/*"
               style={{ display: "none" }}
               id={`image-upload-${index}`}
               type="file"
               onChange={handleImageChange(index)}
+              disabled={isPending}
             />
-            <label htmlFor={`image-upload-${index}`}>
-              <Box sx={{ position: "relative"}}>
-                <Avatar
-                  src={getImagePreview(index)}
-                  variant="rounded"
-                  sx={{ width: 180, height: 180, border: "1px dashed #ccc" }}
+            <label
+              htmlFor={`image-upload-${index}`}
+              style={{
+                display: "block",
+                cursor: isPending ? "not-allowed" : "pointer",
+              }}
+            >
+              <Box
+                sx={{
+                  position: "relative",
+                  width: "100%",
+                  paddingTop: "100%",
+                }}
+              >
+                <Box
+                  sx={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: 2,
+                    border: "2px dashed #ddd",
+                    bgcolor: "#f5f5f5",
+                    overflow: "hidden",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundImage: getImagePreview(index)
+                      ? `url(${getImagePreview(index)})`
+                      : "none",
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    transition: "border-color 0.2s",
+                    "&:hover": { borderColor: "primary.main" },
+                  }}
                 >
                   {!getImagePreview(index) && (
-                    <ImageIcon sx={{ fontSize: 30, color: "#999" }} />
+                    <Stack alignItems="center" spacing={0.5}>
+                      <ImageIcon sx={{ fontSize: 22, color: "#bbb" }} />
+                      <Typography fontSize={10} color="text.secondary">
+                        {index + 1}
+                      </Typography>
+                    </Stack>
                   )}
-                </Avatar>
+                </Box>
               </Box>
             </label>
-          </Grid>
+          </Box>
         ))}
-      </Grid>
-      <TextField
-        label="Description"
-        multiline
-        rows={5}
-        sx={{ mb: 2 }}
-        fullWidth
-        value={formData.propertyDescription || ""}
-        onChange={handleChange("propertyDescription")}
-        InputProps={{ startAdornment: <HomeWorkIcon sx={{ mr: 1 }} /> }}
-      />
-      <Grid container spacing={2}>
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Place"
-            value={formData.place || ""}
-            onChange={handleChange("place")}
-            InputProps={{ startAdornment: <LocationOnIcon sx={{ mr: 1 }} /> }}
-          />
-        </Grid>
-        <Grid item>
-          {" "}
-          <FormControl sx={{ width: 200 }}>
-            <InputLabel id="service-type-label">
-              Property Business Type
-            </InputLabel>
+      </Box>
+
+      <Divider sx={{ mb: 2 }} />
+
+      {/* ── All Fields ── */}
+      <Stack spacing={2}>
+        <Field
+          label="Description"
+          value={formData.propertyDescription || ""}
+          onChange={handleChange("propertyDescription")}
+          disabled={isPending}
+          icon={<HomeWorkIcon fontSize="small" />}
+          multiline
+          rows={4}
+        />
+
+        <Field
+          label="Place"
+          value={formData.place || ""}
+          onChange={handleChange("place")}
+          disabled={isPending}
+          icon={<LocationOnIcon fontSize="small" />}
+        />
+
+        {/* Business Type + Category — side by side */}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+            gap: 2,
+          }}
+        >
+          <FormControl fullWidth disabled={isPending}>
+            <InputLabel>Property Business Type</InputLabel>
             <Select
-              labelId="service-type-label"
               value={formData.serviceProvideType || ""}
-              label="Service Type"
+              label="Property Business Type"
               onChange={handleChange("serviceProvideType")}
             >
               <MenuItem value="Sale">Sale</MenuItem>
               <MenuItem value="Rent">Rent</MenuItem>
             </Select>
           </FormControl>
-        </Grid>
-        <Grid item>
-          <FormControl fullWidth sx={{ width: 200 }}>
-            <InputLabel id="property-category-label">
-              Property Category
-            </InputLabel>
+
+          <FormControl fullWidth disabled={isPending}>
+            <InputLabel>Property Category</InputLabel>
             <Select
-              labelId="property-category-label"
               value={formData.propertyCategory || ""}
-              label="Service Type"
+              label="Property Category"
               onChange={handleChange("propertyCategory")}
             >
-              <MenuItem value={"House"}>House</MenuItem>
-              <MenuItem value={"Villa"}>Villa</MenuItem>
-              <MenuItem value={"Apartment"}>Apartment</MenuItem>
-              <MenuItem value={"Land"}>Land</MenuItem>
+              <MenuItem value="House">House</MenuItem>
+              <MenuItem value="Villa">Villa</MenuItem>
+              <MenuItem value="Apartment">Apartment</MenuItem>
+              <MenuItem value="Land">Land</MenuItem>
             </Select>
           </FormControl>
-        </Grid>
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Location URL"
-            value={formData.locationUrl || ""}
-            onChange={handleChange("locationUrl")}
-            InputProps={{ startAdornment: <LinkIcon sx={{ mr: 1 }} /> }}
-          />
-        </Grid>
-        <Grid item xs={12}></Grid>
-        <Grid item xs={6}>
-          <TextField
-            fullWidth
+        </Box>
+
+        <Field
+          label="Location URL"
+          value={formData.locationUrl || ""}
+          onChange={handleChange("locationUrl")}
+          disabled={isPending}
+          icon={<LinkIcon fontSize="small" />}
+        />
+
+        {/* Number fields — 2 column grid */}
+        <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+          <Field
             label="Rooms"
-            type="number"
             value={formData.numberOfRooms || ""}
             onChange={handleChange("numberOfRooms")}
-            InputProps={{ startAdornment: <BedIcon sx={{ mr: 1 }} /> }}
-          />
-        </Grid>
-        <Grid item xs={6}>
-          <TextField
-            fullWidth
-            label="Bathrooms"
+            disabled={isPending}
+            icon={<BedIcon fontSize="small" />}
             type="number"
+          />
+          <Field
+            label="Bathrooms"
             value={formData.numberOfBathRooms || ""}
             onChange={handleChange("numberOfBathRooms")}
-            InputProps={{ startAdornment: <BathtubIcon sx={{ mr: 1 }} /> }}
-          />
-        </Grid>
-        <Grid item xs={6}>
-          <TextField
-            fullWidth
-            label="Attached Bathrooms"
+            disabled={isPending}
+            icon={<BathtubIcon fontSize="small" />}
             type="number"
+          />
+          <Field
+            label="Attached Bathrooms"
             value={formData.attachedBathRooms || ""}
             onChange={handleChange("attachedBathRooms")}
-            InputProps={{ startAdornment: <BathtubIcon sx={{ mr: 1 }} /> }}
-          />
-        </Grid>
-        <Grid item xs={6}>
-          <TextField
-            fullWidth
-            label="Cents"
+            disabled={isPending}
+            icon={<BathtubIcon fontSize="small" />}
             type="number"
+          />
+          <Field
+            label="Cents"
             value={formData.cent || ""}
             onChange={handleChange("cent")}
-            InputProps={{ startAdornment: <SquareFootIcon sx={{ mr: 1 }} /> }}
-          />
-        </Grid>
-        <Grid item xs={6}>
-          <TextField
-            fullWidth
-            label="Square Feet"
+            disabled={isPending}
+            icon={<SquareFootIcon fontSize="small" />}
             type="number"
+          />
+          <Field
+            label="Square Feet"
             value={formData.squareFeet || ""}
             onChange={handleChange("squareFeet")}
-            InputProps={{ startAdornment: <SquareFootIcon sx={{ mr: 1 }} /> }}
-          />
-        </Grid>
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Price (INR)"
+            disabled={isPending}
+            icon={<SquareFootIcon fontSize="small" />}
             type="number"
-            value={formData.price || ""}
-            onChange={handleChange("price")}
-            InputProps={{
-              startAdornment: <PriceChangeIconchange sx={{ mr: 1 }} />,
-            }}
           />
-        </Grid>
-      </Grid>
+        </Box>
 
-      <Box mt={4}>
+        <Field
+          label="Price (INR)"
+          value={formData.price || ""}
+          onChange={handleChange("price")}
+          disabled={isPending}
+          icon={<PriceChangeIcon fontSize="small" />}
+          type="number"
+        />
+      </Stack>
+
+      {/* ── Submit ── */}
+      <Box mt={3} mb={2}>
         <Button
           fullWidth
           variant="contained"
           onClick={handleAdd}
-          disabled={addMutation.isPending}
-          startIcon={addMutation.isPending && <CircularProgress size={16} />}
-          sx={{ mb: 2 }}
+          disabled={isPending}
+          startIcon={isPending && <CircularProgress size={16} />}
+          sx={{ py: 1.4, borderRadius: 2, fontWeight: 600, fontSize: 15 }}
         >
-          Add Property
+          {isPending ? "Adding Property…" : "Add Property"}
         </Button>
       </Box>
+
       <Toaster
         position="top-center"
-        reverseOrder={false}
         toastOptions={{
           style: {
             borderRadius: "12px",
             background: theme.palette.background.paper,
             color: theme.palette.text.primary,
-            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
           },
         }}
       />

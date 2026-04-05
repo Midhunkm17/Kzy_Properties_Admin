@@ -11,8 +11,9 @@ import {
   IconButton,
   Typography,
   Divider,
-  Badge,
   useTheme,
+  useMediaQuery,
+  Tooltip,
 } from "@mui/material";
 import {
   Dashboard as DashboardIcon,
@@ -21,172 +22,332 @@ import {
   ChevronLeft as ChevronLeftIcon,
   House,
   AddHomeWork,
+  Close as CloseIcon,
 } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const drawerWidth = 260;
+const collapsedWidth = 72;
 
-const DrawerHeader = styled("div")(({ theme }) => ({
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  padding: theme.spacing(3, 2),
-  ...theme.mixins.toolbar,
-}));
+const menuItems = [
+  { text: "Dashboard", icon: <DashboardIcon />, path: "/" },
+  { text: "Properties", icon: <House />, path: "/properties" },
+  { text: "Add Property", icon: <AddHomeWork />, path: "/add-property" },
+];
 
-const StyledBadge = styled(Badge)(({ theme }) => ({
-  "& .MuiBadge-badge": {
-    right: 3,
-    top: 3,
-    border: `2px solid ${theme.palette.background.paper}`,
-    padding: "0 4px",
-  },
-}));
+// ── Logo / Brand ─────────────────────────────────────────────────────────────
+const Brand = ({ open }) => (
+  <Box
+    sx={{
+      display: "flex",
+      alignItems: "center",
+      gap: 1.5,
+      px: open ? 2.5 : 1,
+      py: 2,
+      minHeight: 64,
+      overflow: "hidden",
+    }}
+  >
+    <Box
+      sx={{
+        width: 36,
+        height: 36,
+        borderRadius: 2,
+        flexShrink: 0,
+        background: "linear-gradient(135deg, #4776E6 0%, #8E54E9 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <House sx={{ color: "#fff", fontSize: 20 }} />
+    </Box>
+    {open && (
+      <Box sx={{ minWidth: 0 }}>
+        <Typography fontWeight={700} fontSize={13} noWrap>
+          Skanda Constructions
+        </Typography>
+        <Typography fontSize={11} color="text.secondary" noWrap>
+          Admin Panel
+        </Typography>
+      </Box>
+    )}
+  </Box>
+);
 
-const DashboardSidebar = () => {
+// ── Menu Items ────────────────────────────────────────────────────────────────
+const MenuContent = ({ open, onNavigate }) => {
+  const theme = useTheme();
+  const location = useLocation();
+
+  return (
+    <Box sx={{ px: open ? 1.5 : 1, mt: 1, flex: 1 }}>
+      {open && (
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: 700,
+            color: "text.disabled",
+            px: 1,
+            mb: 1,
+            display: "block",
+            letterSpacing: 0.8,
+          }}
+        >
+          MAIN MENU
+        </Typography>
+      )}
+
+      <List sx={{ p: 0, display: "flex", flexDirection: "column", gap: 0.5 }}>
+        {menuItems.map((item) => {
+          const active = location.pathname === item.path;
+
+          return (
+            <ListItem key={item.text} disablePadding>
+              <Tooltip title={!open ? item.text : ""} placement="right">
+                <ListItemButton
+                  onClick={() => onNavigate(item.path)}
+                  sx={{
+                    borderRadius: 2,
+                    height: 46,
+                    px: open ? 1.5 : 0,
+                    justifyContent: open ? "flex-start" : "center",
+                    gap: 1.5,
+                    transition: "all 0.2s ease",
+                    position: "relative",
+                    bgcolor: active
+                      ? alpha(theme.palette.primary.main, 0.1)
+                      : "transparent",
+                    "&:hover": {
+                      bgcolor: alpha(theme.palette.primary.main, 0.07),
+                    },
+                    // active left bar indicator
+                    "&::before": active
+                      ? {
+                          content: '""',
+                          position: "absolute",
+                          left: 0,
+                          top: "20%",
+                          bottom: "20%",
+                          width: 3,
+                          borderRadius: 4,
+                          bgcolor: "primary.main",
+                        }
+                      : {},
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 0,
+                      justifyContent: "center",
+                      color: active ? "primary.main" : "text.secondary",
+                      transition: "color 0.2s",
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+
+                  {open && (
+                    <>
+                      <ListItemText
+                        primary={item.text}
+                        primaryTypographyProps={{
+                          fontSize: 14,
+                          fontWeight: active ? 700 : 500,
+                          color: active ? "primary.main" : "text.primary",
+                        }}
+                      />
+                      {active && (
+                        <ArrowIcon
+                          fontSize="small"
+                          sx={{ color: "primary.main", opacity: 0.7 }}
+                        />
+                      )}
+                    </>
+                  )}
+                </ListItemButton>
+              </Tooltip>
+            </ListItem>
+          );
+        })}
+      </List>
+    </Box>
+  );
+};
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+const DashboardSidebar = ({ mobileOpen, onMobileClose }) => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [open, setOpen] = useState(true);
-  const currentPage = window.location.pathname;
 
-  const handleDrawerToggle = () => {
-    setOpen(!open);
+  const handleNavigate = (path) => {
+    navigate(path);
+    if (isMobile) onMobileClose();
   };
 
-  const menuItems = [
-    { text: "Dashboard", icon: <DashboardIcon />, path: "/" },
-    { text: "Properties", icon: <House />, path: "/properties" },
-    { text: "Add Property", icon: <AddHomeWork />, path: "/add-property" },
-  ];
+  const paperStyles = (width) => ({
+    width,
+    boxSizing: "border-box",
+    borderRight: "1px solid",
+    borderColor: "divider",
+    display: "flex",
+    flexDirection: "column",
+    bgcolor: "background.paper",
+    transition: "width 0.3s ease",
+    overflowX: "hidden",
+  });
 
+  const drawerContent = (isExpanded) => (
+    <>
+      {/* Brand */}
+      <Brand open={isExpanded} />
+      <Divider />
+
+      {/* Menu */}
+      <MenuContent open={isExpanded} onNavigate={handleNavigate} />
+
+      {/* Footer */}
+      {isExpanded && (
+        <Box sx={{ p: 2, mt: "auto" }}>
+          <Box
+            sx={{
+              borderRadius: 2,
+              p: 1.5,
+              bgcolor: alpha(theme.palette.primary.main, 0.06),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+            }}
+          >
+            <Typography fontSize={12} fontWeight={600} color="primary.main">
+              Skanda Constructions
+            </Typography>
+            <Typography fontSize={11} color="text.secondary">
+              Real Estate Admin v1.0
+            </Typography>
+          </Box>
+        </Box>
+      )}
+    </>
+  );
+
+  // ── Mobile ──
+  if (isMobile) {
+    return (
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={onMobileClose}
+        ModalProps={{ keepMounted: true }}
+        sx={{ "& .MuiDrawer-paper": paperStyles(drawerWidth) }}
+      >
+        {/* Mobile header with close */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            px: 2,
+            minHeight: 64,
+            flexShrink: 0,
+          }}
+        >
+          <Box display="flex" alignItems="center" gap={1.5}>
+            <Box
+              sx={{
+                width: 34,
+                height: 34,
+                borderRadius: 2,
+                flexShrink: 0,
+                background: "linear-gradient(135deg, #4776E6 0%, #8E54E9 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <House sx={{ color: "#fff", fontSize: 18 }} />
+            </Box>
+            <Box>
+              <Typography fontWeight={700} fontSize={13}>
+                Skanda Constructions
+              </Typography>
+              <Typography fontSize={11} color="text.secondary">
+                Admin Panel
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton onClick={onMobileClose} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+
+        <Divider />
+        <MenuContent open={true} onNavigate={handleNavigate} />
+      </Drawer>
+    );
+  }
+
+  // ── Desktop ──
   return (
     <Drawer
       variant="permanent"
-      open={open}
       sx={{
-        width: open ? drawerWidth : 72,
+        width: open ? drawerWidth : collapsedWidth,
         flexShrink: 0,
-        transition: theme.transitions.create("width", {
-          easing: theme.transitions.easing.sharp,
-          duration: theme.transitions.duration.enteringScreen,
-        }),
-        "& .MuiDrawer-paper": {
-          width: open ? drawerWidth : 72,
-          transition: theme.transitions.create("width", {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.enteringScreen,
-          }),
-          overflowX: "hidden",
-          backgroundImage:
-            "linear-gradient(112.5deg, rgb(214, 214, 214) 0%, rgb(214, 214, 214) 10%,rgb(195, 195, 195) 10%, rgb(195, 195, 195) 53%,rgb(176, 176, 176) 53%, rgb(176, 176, 176) 55%,rgb(157, 157, 157) 55%, rgb(157, 157, 157) 60%,rgb(137, 137, 137) 60%, rgb(137, 137, 137) 88%,rgb(118, 118, 118) 88%, rgb(118, 118, 118) 91%,rgb(99, 99, 99) 91%, rgb(99, 99, 99) 100%),linear-gradient(157.5deg, rgb(214, 214, 214) 0%, rgb(214, 214, 214) 10%,rgb(195, 195, 195) 10%, rgb(195, 195, 195) 53%,rgb(176, 176, 176) 53%, rgb(176, 176, 176) 55%,rgb(157, 157, 157) 55%, rgb(157, 157, 157) 60%,rgb(137, 137, 137) 60%, rgb(137, 137, 137) 88%,rgb(118, 118, 118) 88%, rgb(118, 118, 118) 91%,rgb(99, 99, 99) 91%, rgb(99, 99, 99) 100%),linear-gradient(135deg, rgb(214, 214, 214) 0%, rgb(214, 214, 214) 10%,rgb(195, 195, 195) 10%, rgb(195, 195, 195) 53%,rgb(176, 176, 176) 53%, rgb(176, 176, 176) 55%,rgb(157, 157, 157) 55%, rgb(157, 157, 157) 60%,rgb(137, 137, 137) 60%, rgb(137, 137, 137) 88%,rgb(118, 118, 118) 88%, rgb(118, 118, 118) 91%,rgb(99, 99, 99) 91%, rgb(99, 99, 99) 100%),linear-gradient(90deg, rgb(195, 195, 195),rgb(228, 228, 228)); background-blend-mode:overlay,overlay,overlay,normal;",
-          boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.08)",
-          borderRight: "none",
-          color: "black",
-        },
+        "& .MuiDrawer-paper": paperStyles(open ? drawerWidth : collapsedWidth),
       }}
     >
-      <DrawerHeader>
-        {open && (
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: "bold", color: "#1c1917", ml: 1 }}
-          >
-            Kozhencherry Real Estate Admin
-          </Typography>
-        )}
-        <IconButton onClick={handleDrawerToggle} sx={{ ml: "auto" }}>
-          {open ? <ChevronLeftIcon /> : <MenuIcon />}
+      {/* Header row with toggle */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: open ? "space-between" : "center",
+          px: open ? 1 : 0,
+          minHeight: 64,
+        }}
+      >
+        {open && <Brand open={true} />}
+        <IconButton
+          onClick={() => setOpen(!open)}
+          size="small"
+          sx={{
+            mr: open ? 1 : 0,
+            bgcolor: alpha(theme.palette.primary.main, 0.06),
+            "&:hover": { bgcolor: alpha(theme.palette.primary.main, 0.12) },
+          }}
+        >
+          {open ? (
+            <ChevronLeftIcon fontSize="small" />
+          ) : (
+            <MenuIcon fontSize="small" />
+          )}
         </IconButton>
-      </DrawerHeader>
-
-      <Box sx={{ px: open ? 2 : 0.5, mt: 1 }}>
-        {open && (
-          <Typography
-            variant="caption"
-            sx={{
-              fontWeight: 600,
-              color: "text.secondary",
-              px: 1,
-              textTransform: "uppercase",
-              letterSpacing: "0.1em",
-              display: "block",
-              mb: 1,
-            }}
-          >
-            Main Menu
-          </Typography>
-        )}
-        <List>
-          {menuItems.map((item) => (
-            <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
-              <ListItemButton
-                sx={{
-                  minHeight: 50,
-                  px: open ? 2 : 1,
-                  borderRadius: 2,
-                  position: "relative",
-                  justifyContent: open ? "initial" : "center",
-                  ...(currentPage === item.path && {
-                    background: `linear-gradient(90deg, ${alpha(
-                      theme.palette.primary.main,
-                      0.12
-                    )} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
-                    "&::before": {
-                      content: '""',
-                      position: "absolute",
-                      left: 0,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      width: 4,
-                      height: "60%",
-                      backgroundColor: theme.palette.primary.main,
-                      borderRadius: "0 4px 4px 0",
-                    },
-                  }),
-                }}
-                onClick={() => navigate(item.path)}
-              >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 0,
-                    mr: open ? 1 : "auto",
-                    justifyContent: "center",
-                    color: currentPage === item.path
-                      ? theme.palette.primary.main
-                      : "black",
-                  }}
-                >
-                  <StyledBadge>{item.icon}</StyledBadge>
-                </ListItemIcon>
-                {open && (
-                  <ListItemText
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      sx: {
-                        fontWeight: currentPage === item.path ? 600 : 500,
-                        fontSize: "0.95rem",
-                      },
-                    }}
-                  />
-                )}
-                {open && currentPage === item.path && (
-                  <ArrowIcon
-                    fontSize="small"
-                    sx={{
-                      ml: 1,
-                      opacity: 0.7,
-                      color: theme.palette.primary.main,
-                    }}
-                  />
-                )}
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
       </Box>
 
-      <Box sx={{ flexGrow: 1 }} />
-      <Divider sx={{ mx: 2, opacity: 0.2 }} />
+      <Divider />
+      <MenuContent open={open} onNavigate={handleNavigate} />
+
+      {/* Footer only when expanded */}
+      {open && (
+        <Box sx={{ p: 2 }}>
+          <Box
+            sx={{
+              borderRadius: 2,
+              p: 1.5,
+              bgcolor: alpha(theme.palette.primary.main, 0.06),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+            }}
+          >
+            <Typography fontSize={12} fontWeight={600} color="primary.main">
+              Skanda Constructions
+            </Typography>
+            <Typography fontSize={11} color="text.secondary">
+              Real Estate Admin v1.0
+            </Typography>
+          </Box>
+        </Box>
+      )}
     </Drawer>
   );
 };
